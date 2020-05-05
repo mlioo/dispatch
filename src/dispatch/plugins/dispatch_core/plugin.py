@@ -72,13 +72,15 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
             status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
         )
 
-        authorization: str = request.headers.get("Authorization")
+        authorization: str = request.headers.get("x-goog-iap-jwt-assertion")
         scheme, param = get_authorization_scheme_param(authorization)
-        if not authorization or scheme.lower() != "bearer":
-            raise credentials_exception
+        # if not authorization or scheme.lower() != "bearer":
+        #     raise credentials_exception
 
-        token = authorization.split()[1]
-        key = requests.get(DISPATCH_AUTHENTICATION_PROVIDER_PKCE_JWKS).json()["keys"][0]
+        token = authorization
+
+
+        key = get_iap_key
 
         try:
             data = jwt.decode(token, key)
@@ -86,6 +88,27 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
             raise credentials_exception
 
         return data["email"]
+
+def get_iap_key(key_id):
+    """Retrieves a public key from the list published by Identity-Aware Proxy,
+    re-fetching the key file if necessary.
+    """
+    key_cache = get_iap_key.key_cache
+    key = key_cache.get(key_id)
+    if not key:
+        # Re-fetch the key file.
+        resp = requests.get(
+            'https://www.gstatic.com/iap/verify/public_key')
+        if resp.status_code != 200:
+            raise Exception(
+                'Unable to fetch IAP keys: {} / {} / {}'.format(
+                    resp.status_code, resp.headers, resp.text))
+        key_cache = resp.json()
+        get_iap_key.key_cache = key_cache
+        key = key_cache.get(key_id)
+        if not key:
+            raise Exception('Key {!r} not found'.format(key_id))
+    return key
 
 
 class DispatchTicketPlugin(TicketPlugin):

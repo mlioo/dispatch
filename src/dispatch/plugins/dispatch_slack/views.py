@@ -568,6 +568,7 @@ def command_functions(command: str):
         SLACK_COMMAND_MARK_STABLE_SLUG: [],
         SLACK_COMMAND_STATUS_REPORT_SLUG: [create_status_report_dialog],
         SLACK_COMMAND_ENGAGE_ONCALL_SLUG: [create_engage_oncall_dialog],
+        SLACK_COMMAND_HELP: [],
     }
 
     return command_mappings.get(command, [])
@@ -771,13 +772,16 @@ async def handle_command(
     channel_id = command.get("channel_id")
     conversation = get_by_channel_id(db_session=db_session, channel_id=channel_id)
 
+    # TODO move from multiple slash commands to a single one with options
     # Dispatch command functions to be executed in the background
     if conversation:
-        for f in command_functions(command.get("command")):
-            background_tasks.add_task(f, conversation.incident_id, command=command)
+        cmd = command.get("text").split(" ")
+        if cmd[0]:
+            for f in command_functions(cmd[0]):
+                background_tasks.add_task(f, conversation.incident_id, command=command)
 
         return INCIDENT_CONVERSATION_COMMAND_MESSAGE.get(
-            command.get("command"), f"Unable to find message. Command: {command.get('command')}"
+            cmd[0]), f"Unable to find message. Command: {cmd[0]}"
         )
     else:
         return render_non_incident_conversation_command_error_message(command.get("command"))
