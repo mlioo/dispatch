@@ -781,7 +781,7 @@ async def handle_command(
                 background_tasks.add_task(f, conversation.incident_id, command=command)
 
         return INCIDENT_CONVERSATION_COMMAND_MESSAGE.get(
-            cmd[0]), f"Unable to find message. Command: {cmd[0]}"
+            cmd[0], f"Unable to find message. Command: {cmd[0]}"
         )
     else:
         return render_non_incident_conversation_command_error_message(command.get("command"))

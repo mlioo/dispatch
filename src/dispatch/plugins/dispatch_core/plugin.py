@@ -121,8 +121,6 @@ class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
     author = "mlioo"
     author_url = "https://github.com/mlioo"
 
-    get_iap_key.key_cache = {}
-
     def get_iap_key(key_id):
         """Retrieves a public key from the list published by Identity-Aware Proxy,
         re-fetching the key file if necessary.
@@ -161,6 +159,8 @@ class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
             raise credentials_exception
 
         return data["email"]
+
+    get_iap_key.key_cache = {}
 
 
 class DispatchTicketPlugin(TicketPlugin):
