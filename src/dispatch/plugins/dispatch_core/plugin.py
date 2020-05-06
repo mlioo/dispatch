@@ -67,7 +67,26 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
     author = "Netflix"
     author_url = "https://github.com/netflix/dispatch.git"
 
-    get_iap_key.key_cache = {}
+    def get_iap_key(key_id):
+        """Retrieves a public key from the list published by Identity-Aware Proxy,
+        re-fetching the key file if necessary.
+        """
+        key_cache = get_iap_key.key_cache
+        key = key_cache.get(key_id)
+        if not key:
+            # Re-fetch the key file.
+            resp = requests.get(
+                'https://www.gstatic.com/iap/verify/public_key')
+            if resp.status_code != 200:
+                raise Exception(
+                    'Unable to fetch IAP keys: {} / {} / {}'.format(
+                        resp.status_code, resp.headers, resp.text))
+            key_cache = resp.json()
+            get_iap_key.key_cache = key_cache
+            key = key_cache.get(key_id)
+            if not key:
+                raise Exception('Key {!r} not found'.format(key_id))
+        return key
 
     def get_current_user(self, request: Request, **kwargs):
         credentials_exception = HTTPException(
@@ -90,6 +109,8 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
             raise credentials_exception
 
         return data["email"]
+
+    get_iap_key.key_cache = {}
 
 class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
     title = "Dispatch Plugin - GCP IAM Authentication Provider"
