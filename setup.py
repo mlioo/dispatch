@@ -290,7 +290,7 @@ class BuildAssetsCommand(BaseBuildCommand):
         )
         if not version_info["version"] or not version_info["build"]:
             log.fatal("Could not determine dispatch version or build")
-            sys.exit(1)
+            # sys.exit(1)
 
         try:
             self._build_static()
