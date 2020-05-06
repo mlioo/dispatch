@@ -100,8 +100,11 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
 
         token = authorization
 
+        key_id = jwt.decode_header(iap_jwt).get('kid')
+        if not key_id:
+            raise Exception('**ERROR: no key ID**')
 
-        key = get_iap_key
+        key = self.get_iap_key(key_id)
 
         try:
             data = jwt.decode(token, key)
