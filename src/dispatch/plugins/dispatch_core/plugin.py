@@ -115,6 +115,8 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
 
     get_iap_key.key_cache = {}
 
+get_iap_key.key_cache = {}
+
 class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
     title = "Dispatch Plugin - GCP IAM Authentication Provider"
     slug = "dispatch-auth-provider-iap"
@@ -162,8 +164,6 @@ class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
             raise credentials_exception
 
         return data["email"]
-
-    get_iap_key.key_cache = {}
 
 
 class DispatchTicketPlugin(TicketPlugin):
