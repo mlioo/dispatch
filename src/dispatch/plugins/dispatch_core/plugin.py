@@ -57,6 +57,7 @@ class BasicAuthProviderPlugin(AuthenticationProviderPlugin):
             raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=str(e))
         return data["email"]
 
+get_iap_key.key_cache = {}
 
 class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
     title = "Dispatch Plugin - PKCE Authentication Provider"
@@ -111,11 +112,12 @@ class PKCEAuthProviderPlugin(AuthenticationProviderPlugin):
         except JWTError:
             raise credentials_exception
 
+        print "****************************** \n hi \n ****************************"
+        print data
+
         return data["email"]
 
     get_iap_key.key_cache = {}
-
-get_iap_key.key_cache = {}
 
 class IAPAuthProviderPlugin(AuthenticationProviderPlugin):
     title = "Dispatch Plugin - GCP IAM Authentication Provider"
