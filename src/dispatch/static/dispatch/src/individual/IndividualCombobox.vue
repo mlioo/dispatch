@@ -30,7 +30,7 @@
 
 <script>
 import IndividualApi from "@/individual/api"
-import _ from "lodash"
+import { cloneDeep, debounce } from "lodash"
 export default {
   name: "IndividualComboBox",
   props: {
@@ -59,9 +59,10 @@ export default {
   computed: {
     individual: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
+        this.search = null
         this._individuals = value.map(v => {
           if (typeof v === "string") {
             v = {
@@ -89,7 +90,7 @@ export default {
         this.loading = false
       })
     },
-    getFilteredData: _.debounce(function(options) {
+    getFilteredData: debounce(function(options) {
       this.fetchData(options)
     }, 500)
   }

@@ -106,10 +106,13 @@
         </v-row>
       </v-flex>
       <v-flex xs12>
-        <term-combobox v-model="terms" />
+        <term-combobox label="Terms" v-model="terms" />
       </v-flex>
       <v-flex xs12>
-        <tag-combobox v-model="tags" />
+        <tag-filter-combobox label="Tags" v-model="tags" />
+      </v-flex>
+      <v-flex xs12>
+        <incident-filter-combobox label="Duplicates" v-model="duplicates" />
       </v-flex>
     </v-layout>
   </v-container>
@@ -125,7 +128,8 @@ import IndividualSelect from "@/individual/IndividualSelect.vue"
 import DatePickerMenu from "@/components/DatePickerMenu.vue"
 import TimePickerMenu from "@/components/TimePickerMenu.vue"
 import TermCombobox from "@/term/TermCombobox.vue"
-import TagCombobox from "@/tag/TagCombobox.vue"
+import TagFilterCombobox from "@/tag/TagFilterCombobox.vue"
+import IncidentFilterCombobox from "@/incident/IncidentFilterCombobox.vue"
 
 extend("required", {
   ...required,
@@ -141,7 +145,8 @@ export default {
     IncidentTypeSelect,
     IndividualSelect,
     TermCombobox,
-    TagCombobox,
+    TagFilterCombobox,
+    IncidentFilterCombobox,
     TimePickerMenu,
     DatePickerMenu
   },
@@ -169,6 +174,7 @@ export default {
       "selected.tags",
       "selected.incident_priority",
       "selected.incident_type",
+      "selected.duplicates",
       "selected.visibility"
     ])
   }

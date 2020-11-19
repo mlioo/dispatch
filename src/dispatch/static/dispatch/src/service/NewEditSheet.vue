@@ -1,16 +1,28 @@
 <template>
-  <v-navigation-drawer v-model="showCreateEdit" app clipped right width="500">
-    <template v-slot:prepend>
-      <v-list-item two-line>
-        <v-list-item-content>
-          <v-list-item-title v-if="id" class="title">Edit</v-list-item-title>
-          <v-list-item-title v-else class="title">New</v-list-item-title>
-          <v-list-item-subtitle>Service</v-list-item-subtitle>
-        </v-list-item-content>
-      </v-list-item>
-    </template>
-    <ValidationObserver>
-      <v-card slot-scope="{ invalid, validated }" flat>
+  <ValidationObserver v-slot="{ invalid, validated }">
+    <v-navigation-drawer v-model="showCreateEdit" app clipped right width="500">
+      <template v-slot:prepend>
+        <v-list-item two-line>
+          <v-list-item-content>
+            <v-list-item-title v-if="id" class="title">Edit</v-list-item-title>
+            <v-list-item-title v-else class="title">New</v-list-item-title>
+            <v-list-item-subtitle>Service</v-list-item-subtitle>
+          </v-list-item-content>
+          <v-btn
+            icon
+            color="primary"
+            :loading="loading"
+            :disabled="invalid || !validated"
+            @click="save()"
+          >
+            <v-icon>save</v-icon>
+          </v-btn>
+          <v-btn icon color="secondary" @click="closeCreateEdit()">
+            <v-icon>close</v-icon>
+          </v-btn>
+        </v-list-item>
+      </template>
+      <v-card flat>
         <v-card-text>
           <v-container grid-list-md>
             <v-layout wrap>
@@ -45,22 +57,21 @@
                   />
                 </ValidationProvider>
               </v-flex>
-              <!--Disable type (default to pager duty) until we have a way to validate.
+              <!-- Disable type (default to pager duty) until we have a way to validate. -->
               <v-flex xs12>
-                <ValidationProvider name="Type"
-rules="required" immediate>
-                  <v-text-field
+                <ValidationProvider name="Type" rules="required" immediate>
+                  <v-select
                     v-model="type"
                     slot-scope="{ errors, valid }"
+                    :loading="loading"
+                    :items="oncall_plugins"
                     label="Type"
                     :error-messages="errors"
+                    hint="Oncall plugin to use"
                     :success="valid"
-                    hint="The type service."
-                    clearable
-                    required
-                  />
+                  ></v-select>
                 </ValidationProvider>
-              </v-flex>-->
+              </v-flex>
               <v-flex xs12>
                 <ValidationProvider name="External Id" rules="required" immediate>
                   <v-text-field
@@ -76,7 +87,7 @@ rules="required" immediate>
                 </ValidationProvider>
               </v-flex>
               <v-flex xs12>
-                <v-switch v-model="is_active" :label="is_active ? 'Active' : 'Inactive'" />
+                <v-checkbox v-model="is_active" label="Enabled" />
               </v-flex>
               <v-flex xs12>
                 <span class="subtitle-2">Engagement</span>
@@ -93,21 +104,9 @@ rules="required" immediate>
             </v-layout>
           </v-container>
         </v-card-text>
-
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="secondary" @click="closeCreateEdit()">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            :loading="loading"
-            :disabled="invalid || !validated"
-            @click="save()"
-            >Save</v-btn
-          >
-        </v-card-actions>
       </v-card>
-    </ValidationObserver>
-  </v-navigation-drawer>
+    </v-navigation-drawer>
+  </ValidationObserver>
 </template>
 
 <script>
@@ -118,6 +117,7 @@ import { required } from "vee-validate/dist/rules"
 import IncidentPriorityMultiSelect from "@/incident_priority/IncidentPriorityMultiSelect.vue"
 import IncidentTypeMultiSelect from "@/incident_type/IncidentTypeMultiSelect.vue"
 import TermCombobox from "@/term/TermCombobox.vue"
+import PluginApi from "@/plugin/api"
 
 extend("required", {
   ...required,
@@ -153,6 +153,20 @@ export default {
 
   methods: {
     ...mapActions("service", ["save", "closeCreateEdit"])
+  },
+
+  data() {
+    return {
+      oncall_plugins: null
+    }
+  },
+
+  mounted() {
+    this.loading = true
+    PluginApi.getByType("oncall").then(response => {
+      this.loading = false
+      this.oncall_plugins = response.data.items.map(p => p.slug)
+    })
   }
 }
 </script>

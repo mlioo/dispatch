@@ -1,21 +1,27 @@
 <template>
-  <v-autocomplete
-    v-model="document"
-    :items="items"
-    :search-input.sync="search"
-    :menu-props="{ maxHeight: '400' }"
-    cache-items
-    item-text="name"
-    label="Document"
-    placeholder="Start typing to Search"
-    return-object
-    :loading="loading"
-  />
+  <ValidationProvider name="document" immediate>
+    <v-autocomplete
+      v-model="document"
+      :items="items"
+      :search-input.sync="search"
+      :menu-props="{ maxHeight: '400' }"
+      cache-items
+      slot-scope="{ errors, valid }"
+      :error-messages="errors"
+      :success="valid"
+      item-text="name"
+      label="Document"
+      placeholder="Start typing to search"
+      return-object
+      :loading="loading"
+    />
+  </ValidationProvider>
 </template>
 
 <script>
 import DocumentApi from "@/document/api"
-import _ from "lodash"
+import { cloneDeep } from "lodash"
+import { ValidationProvider } from "vee-validate"
 export default {
   name: "DocumentSelect",
 
@@ -26,6 +32,10 @@ export default {
         return {}
       }
     }
+  },
+
+  components: {
+    ValidationProvider
   },
 
   data() {
@@ -50,7 +60,7 @@ export default {
   computed: {
     document: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
         this.$emit("input", value)

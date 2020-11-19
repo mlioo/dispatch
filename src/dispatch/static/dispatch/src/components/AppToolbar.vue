@@ -17,8 +17,16 @@
     <v-toolbar-items>
       <v-tooltip bottom>
         <template v-slot:activator="{ on }">
+          <v-btn icon v-on="on" to="/incidents/report">
+            <v-icon>error_outline</v-icon>
+          </v-btn>
+        </template>
+        <span>Report Incident</span>
+      </v-tooltip>
+      <v-tooltip bottom>
+        <template v-slot:activator="{ on }">
           <v-btn icon v-on="on" @click="handleFullScreen()">
-            <v-icon>mdi-fullscreen</v-icon>
+            <v-icon>fullscreen</v-icon>
           </v-btn>
         </template>
         <span>Fullscreen</span>
@@ -27,7 +35,12 @@
         <template v-slot:activator="{ on }">
           <v-btn icon large text v-on="on">
             <v-avatar size="30px">
-              <img :src="userInfo().thumbnailPhotoUrl" :alt="userInfo().fullName" />
+              <img
+                v-if="userInfo().thumbnailPhotoUrl"
+                :src="userInfo().thumbnailPhotoUrl"
+                :alt="userInfo().fullName"
+              />
+              <v-icon v-else dark>account_circle</v-icon>
             </v-avatar>
           </v-btn>
         </template>
@@ -78,7 +91,7 @@ export default {
       this.$store.dispatch("search/getResults", this.$store.state.query)
       this.$router.push("/search")
     },
-    ...mapState("account", ["userInfo"]),
+    ...mapState("auth", ["userInfo"]),
     ...mapActions("search", ["setQuery"]),
     ...mapMutations("search", ["SET_QUERY"])
   }

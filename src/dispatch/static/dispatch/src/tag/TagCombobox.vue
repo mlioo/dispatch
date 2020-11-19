@@ -27,7 +27,7 @@
 
 <script>
 import TagApi from "@/tag/api"
-import _ from "lodash"
+import { cloneDeep, debounce } from "lodash"
 export default {
   name: "TagCombobox",
   props: {
@@ -39,7 +39,7 @@ export default {
     },
     label: {
       type: String,
-      defualt: "Add Tags"
+      default: "Add Tags"
     }
   },
   data() {
@@ -53,9 +53,10 @@ export default {
   computed: {
     tags: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
+        this.search = null
         this._tags = value.map(v => {
           if (typeof v === "string") {
             v = {
@@ -83,7 +84,7 @@ export default {
         this.loading = false
       })
     },
-    getFilteredData: _.debounce(function(options) {
+    getFilteredData: debounce(function(options) {
       this.fetchData(options)
     }, 500)
   }

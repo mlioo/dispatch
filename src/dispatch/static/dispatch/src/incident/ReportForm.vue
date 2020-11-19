@@ -62,121 +62,139 @@
                       <v-list-item-subtitle>{{ incident_priority.name }}</v-list-item-subtitle>
                     </v-list-item-content>
                   </v-list-item>
+                  <v-divider />
+                  <v-list-item disabled>
+                    <v-list-item-content>
+                      <v-list-item-title>Visibility</v-list-item-title>
+                      <v-list-item-subtitle>{{ visibility }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                  </v-list-item>
                 </v-list-item-group>
               </v-list-group>
             </v-list>
             <v-list three-line>
-              <v-list-group>
+              <v-list-group :value="true">
                 <template v-slot:activator>
                   <v-list-item-title class="title">Incident Resources</v-list-item-title>
                 </template>
-                <v-list-item v-if="ticket" :href="ticket.weblink" target="_blank">
-                  <v-list-item-content>
-                    <v-list-item-title>Ticket</v-list-item-title>
-                    <v-list-item-subtitle>{{ ticket.description }}</v-list-item-subtitle>
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-list-item-icon>
-                      <v-icon>open_in_new</v-icon>
-                    </v-list-item-icon>
-                  </v-list-item-action>
-                </v-list-item>
-                <v-list-item v-else>
-                  <v-list-item-content>
-                    <v-list-item-title>Ticket</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <v-progress-circular indeterminate color="primary" />
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
-                </v-list-item>
-                <v-divider />
-                <v-list-item v-if="conference" :href="conference.weblink" target="_blank">
-                  <v-list-item-content>
-                    <v-list-item-title>Video Conference</v-list-item-title>
-                    <v-list-item-subtitle>{{ conference.description }}</v-list-item-subtitle>
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-list-item-icon>
-                      <v-icon>open_in_new</v-icon>
-                    </v-list-item-icon>
-                  </v-list-item-action>
-                </v-list-item>
-                <v-list-item v-else>
-                  <v-list-item-content>
-                    <v-list-item-title>Video Conference</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <v-progress-circular indeterminate color="primary" />
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
-                </v-list-item>
-                <v-divider />
-                <v-list-item v-if="conversation" :href="conversation.weblink" target="_blank">
-                  <v-list-item-content>
-                    <v-list-item-title>Conversation</v-list-item-title>
-                    <v-list-item-subtitle>{{ conversation.description }}</v-list-item-subtitle>
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-list-item-icon>
-                      <v-icon>open_in_new</v-icon>
-                    </v-list-item-icon>
-                  </v-list-item-action>
-                </v-list-item>
-                <v-list-item v-else>
-                  <v-list-item-content>
-                    <v-list-item-title>Conversation</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <v-progress-circular indeterminate color="primary" />
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
-                </v-list-item>
-                <v-divider />
-                <v-list-item v-if="storage" :href="storage.weblink" target="_blank">
-                  <v-list-item-content>
-                    <v-list-item-title>Storage</v-list-item-title>
-                    <v-list-item-subtitle>{{ storage.description }}</v-list-item-subtitle>
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <v-list-item-icon>
-                      <v-icon>open_in_new</v-icon>
-                    </v-list-item-icon>
-                  </v-list-item-action>
-                </v-list-item>
-                <v-list-item v-else>
-                  <v-list-item-content>
-                    <v-list-item-title>Storage</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <v-progress-circular indeterminate color="primary" />
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
-                </v-list-item>
-                <v-divider />
-                <div v-if="documents">
-                  <span v-for="document in documents" :key="document.resource_id">
-                    <v-list-item :href="document.weblink" target="_blank">
-                      <v-list-item-content>
-                        <v-list-item-title>{{ document.resource_type | deslug }}</v-list-item-title>
-                        <v-list-item-subtitle>{{ document.description }}</v-list-item-subtitle>
-                      </v-list-item-content>
-                      <v-list-item-action>
-                        <v-list-item-icon>
-                          <v-icon>open_in_new</v-icon>
-                        </v-list-item-icon>
-                      </v-list-item-action>
-                    </v-list-item>
-                    <v-divider />
-                  </span>
-                </div>
-                <span v-else>
-                  <v-list-item>
+                <span v-if="activeResourcePlugins.ticket">
+                  <v-list-item v-if="ticket" :href="ticket.weblink" target="_blank">
                     <v-list-item-content>
-                      <v-list-item-title>Documents</v-list-item-title>
-                      <v-list-item-subtitle>
-                        <v-progress-circular indeterminate color="primary" />
-                      </v-list-item-subtitle>
+                      <v-list-item-title>Ticket</v-list-item-title>
+                      <v-list-item-subtitle>{{ ticket.description }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                    <v-list-item-action>
+                      <v-list-item-icon>
+                        <v-icon>open_in_new</v-icon>
+                      </v-list-item-icon>
+                    </v-list-item-action>
+                  </v-list-item>
+                  <v-list-item v-else>
+                    <v-list-item-content>
+                      <v-list-item-title>Creating incident ticket...</v-list-item-title>
+                      <v-progress-linear indeterminate color="primary"></v-progress-linear>
                     </v-list-item-content>
                   </v-list-item>
                   <v-divider />
                 </span>
+                <span v-if="activeResourcePlugins.conference">
+                  <v-list-item v-if="conference" :href="conference.weblink" target="_blank">
+                    <v-list-item-content>
+                      <v-list-item-title>Video Conference</v-list-item-title>
+                      <v-list-item-subtitle>{{ conference.description }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                    <v-list-item-action>
+                      <v-list-item-icon>
+                        <v-icon>open_in_new</v-icon>
+                      </v-list-item-icon>
+                    </v-list-item-action>
+                  </v-list-item>
+                  <v-list-item v-else>
+                    <v-list-item-content>
+                      <v-list-item-title>Creating incident video conference...</v-list-item-title>
+                      <v-progress-linear indeterminate color="primary"></v-progress-linear>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-divider />
+                </span>
+                <span v-if="activeResourcePlugins.conversation">
+                  <v-list-item v-if="conversation" :href="conversation.weblink" target="_blank">
+                    <v-list-item-content>
+                      <v-list-item-title>Conversation</v-list-item-title>
+                      <v-list-item-subtitle>{{ conversation.description }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                    <v-list-item-action>
+                      <v-list-item-icon>
+                        <v-icon>open_in_new</v-icon>
+                      </v-list-item-icon>
+                    </v-list-item-action>
+                  </v-list-item>
+                  <v-list-item v-else>
+                    <v-list-item-content>
+                      <v-list-item-title>Creating incident conversation...</v-list-item-title>
+                      <v-progress-linear indeterminate color="primary"></v-progress-linear>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-divider />
+                </span>
+                <span v-if="activeResourcePlugins.storage">
+                  <v-list-item v-if="storage" :href="storage.weblink" target="_blank">
+                    <v-list-item-content>
+                      <v-list-item-title>Storage</v-list-item-title>
+                      <v-list-item-subtitle>{{ storage.description }}</v-list-item-subtitle>
+                    </v-list-item-content>
+                    <v-list-item-action>
+                      <v-list-item-icon>
+                        <v-icon>open_in_new</v-icon>
+                      </v-list-item-icon>
+                    </v-list-item-action>
+                  </v-list-item>
+                  <v-list-item v-else>
+                    <v-list-item-content>
+                      <v-list-item-title>Creating incident storage...</v-list-item-title>
+                      <v-progress-linear indeterminate color="primary"></v-progress-linear>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-divider />
+                  <span v-if="documents.length">
+                    <span v-for="document in documents" :key="document.resource_id">
+                      <v-list-item :href="document.weblink" target="_blank">
+                        <v-list-item-content>
+                          <v-list-item-title>{{
+                            document.resource_type | deslug
+                          }}</v-list-item-title>
+                          <v-list-item-subtitle>{{ document.description }}</v-list-item-subtitle>
+                        </v-list-item-content>
+                        <v-list-item-action>
+                          <v-list-item-icon>
+                            <v-icon>open_in_new</v-icon>
+                          </v-list-item-icon>
+                        </v-list-item-action>
+                      </v-list-item>
+                      <v-divider />
+                    </span>
+                  </span>
+                  <span v-else>
+                    <v-list-item>
+                      <v-list-item-content>
+                        <v-list-item-title>Creating incident documents... </v-list-item-title>
+                        <v-progress-linear indeterminate color="primary"></v-progress-linear>
+                      </v-list-item-content>
+                    </v-list-item>
+                  </span>
+                  <v-divider />
+                </span>
+                <v-list-item v-if="incident_faq" :href="incident_faq.weblink" target="_blank">
+                  <v-list-item-content>
+                    <v-list-item-title>Incident FAQ</v-list-item-title>
+                    <v-list-item-subtitle>{{ incident_faq.description }}</v-list-item-subtitle>
+                  </v-list-item-content>
+                  <v-list-item-action>
+                    <v-list-item-icon>
+                      <v-icon>open_in_new</v-icon>
+                    </v-list-item-icon>
+                  </v-list-item-action>
+                </v-list-item>
               </v-list-group>
             </v-list>
             <v-container grid-list-md>
@@ -236,15 +254,21 @@
                     <v-flex xs12>
                       <incident-priority-select v-model="incident_priority" />
                     </v-flex>
+                    <v-flex xs12>
+                      <tag-filter-combobox v-model="tags" label="Tags"></tag-filter-combobox>
+                    </v-flex>
                   </v-layout>
                   <v-btn
                     color="primary"
                     depressed
                     :loading="loading"
                     :disabled="invalid || !validated"
-                    @click="save()"
-                    >Submit</v-btn
-                  >
+                    @click="report()"
+                    >Submit
+                    <template v-slot:loader>
+                      <v-progress-linear indeterminate color="white" dark></v-progress-linear>
+                    </template>
+                  </v-btn>
                 </v-container>
               </v-form>
             </v-card-text>
@@ -267,8 +291,12 @@ import { mapFields } from "vuex-map-fields"
 import { mapActions } from "vuex"
 import { ValidationObserver, ValidationProvider, extend } from "vee-validate"
 import { required } from "vee-validate/dist/rules"
+import { forEach, find } from "lodash"
 import IncidentTypeSelect from "@/incident_type/IncidentTypeSelect.vue"
 import IncidentPrioritySelect from "@/incident_priority/IncidentPrioritySelect.vue"
+import TagFilterCombobox from "@/tag/TagFilterCombobox.vue"
+import DocumentApi from "@/document/api"
+import PluginApi from "@/plugin/api"
 
 extend("required", {
   ...required,
@@ -283,12 +311,46 @@ export default {
     ValidationProvider,
     ValidationObserver,
     IncidentTypeSelect,
-    IncidentPrioritySelect
+    IncidentPrioritySelect,
+    TagFilterCombobox
   },
   data() {
     return {
-      isSubmitted: false
+      isSubmitted: false,
+      incident_faq: null,
+      activeResourcePlugins: {
+        document: null,
+        ticket: null,
+        storage: null,
+        conversation: null,
+        conference: null
+      }
     }
+  },
+  mounted() {
+    DocumentApi.getAll({
+      "field[]": "resource_type",
+      "op[]": "==",
+      "value[]": "dispatch-incident-faq"
+    }).then(response => {
+      if (response.data.items.length) {
+        this.incident_faq = response.data.items[0]
+      }
+    })
+    PluginApi.getAll({
+      itemsPerPage: -1,
+      "field[]": "enabled",
+      "op[]": "==",
+      "value[]": "true"
+    }).then(response => {
+      let data = response.data.items
+      let activeResourcePlugins = this.activeResourcePlugins
+      forEach(Object.keys(activeResourcePlugins), function(value) {
+        activeResourcePlugins[value] = find(data, function(o) {
+          return o.type === value
+        })
+      })
+    })
   },
   computed: {
     ...mapFields("incident", [
@@ -296,9 +358,11 @@ export default {
       "selected.incident_type",
       "selected.commander",
       "selected.title",
+      "selected.tags",
       "selected.description",
       "selected.conversation",
       "selected.conference",
+      "selected.visibility",
       "selected.storage",
       "selected.documents",
       "selected.loading",
@@ -308,7 +372,7 @@ export default {
   },
 
   methods: {
-    ...mapActions("incident", ["save", "get", "resetSelected"])
+    ...mapActions("incident", ["report", "get", "resetSelected"])
   }
 }
 </script>

@@ -6,16 +6,17 @@
     :menu-props="{ maxHeight: '400' }"
     cache-items
     item-text="name"
-    label="Service"
+    :label="label"
     placeholder="Start typing to Search"
     return-object
+    :hint="hint"
     :loading="loading"
   />
 </template>
 
 <script>
 import ServiceApi from "@/service/api"
-import _ from "lodash"
+import { cloneDeep } from "lodash"
 export default {
   name: "ServiceSelect",
 
@@ -24,6 +25,18 @@ export default {
       type: Object,
       default: function() {
         return {}
+      }
+    },
+    label: {
+      type: String,
+      default: function() {
+        return "Service"
+      }
+    },
+    hint: {
+      type: String,
+      default: function() {
+        return "Service to associate"
       }
     }
   },
@@ -50,7 +63,7 @@ export default {
   computed: {
     service: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
         this.$emit("input", value)

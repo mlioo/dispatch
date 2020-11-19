@@ -15,9 +15,10 @@
   * [App](configuration/app.md)
   * [Plugins](configuration/plugins/README.md)
     * [Configuring G Suite](configuration/plugins/configuring-g-suite.md)
-    * [Configuring Slack](configuration/plugins/configuring-slack.md)
-    * [Configuring PagerDuty](configuration/plugins/configuring-pagerduty.md)
     * [Configuring Jira](configuration/plugins/configuring-jira.md)
+    * [Configuring Opsgenie](configuration/plugins/configuring-opsgenie.md)
+    * [Configuring PagerDuty](configuration/plugins/configuring-pagerduty.md)
+    * [Configuring Slack](configuration/plugins/configuring-slack.md)
     * [Configuring Zoom](configuration/plugins/configuring-zoom.md)
 * [CLI](cli.md)
 * [Contributing](contributing/README.md)
@@ -30,3 +31,4 @@
 * [License](license.md)
 * [Changelog](changelog.md)
 * [FAQ](faq.md)
+

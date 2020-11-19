@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Optional, List
 
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Column, Boolean, String, Integer, ForeignKey, DateTime, event
 
 from dispatch.database import Base
@@ -11,19 +11,32 @@ from dispatch.participant_role.models import ParticipantRoleCreate, ParticipantR
 
 
 class Participant(Base):
+    # columns
     id = Column(Integer, primary_key=True)
     is_active = Column(Boolean, default=True)  # TODO(mvilanova): make it a hybrid property
     active_at = Column(
         DateTime, default=datetime.utcnow
     )  # TODO(mvilanova): make it a hybrid property
     inactive_at = Column(DateTime)  # TODO(mvilanova): make it a hybrid property
-    incident_id = Column(Integer, ForeignKey("incident.id"))
-    individual_contact_id = Column(Integer, ForeignKey("individual_contact.id"))
-    location = Column(String)
     team = Column(String)
     department = Column(String)
-    participant_roles = relationship("ParticipantRole", backref="participant")
-    status_reports = relationship("StatusReport", backref="participant")
+    added_by_id = Column(Integer, ForeignKey("participant.id"))
+    added_by = relationship("Participant", backref=backref("added_participant"), remote_side=[id])
+    added_reason = Column(String)
+    location = Column(String)
+    after_hours_notification = Column(Boolean, default=False)
+
+    # relationships
+    feedback = relationship("Feedback", backref="participant")
+    incident_id = Column(Integer, ForeignKey("incident.id"))
+    individual = relationship("IndividualContact", lazy="subquery", backref="participant")
+    individual_contact_id = Column(Integer, ForeignKey("individual_contact.id"))
+    participant_roles = relationship("ParticipantRole", backref="participant", lazy="subquery")
+    reports = relationship("Report", backref="participant")
+    created_tasks = relationship(
+        "Task", backref="creator", primaryjoin="Participant.id==Task.creator_id"
+    )
+    owned_tasks = relationship("Task", backref="owner", primaryjoin="Participant.id==Task.owner_id")
 
     @staticmethod
     def _active_at(mapper, connection, target):
@@ -45,6 +58,7 @@ class ParticipantBase(DispatchBase):
     location: Optional[str]
     team: Optional[str]
     department: Optional[str]
+    added_reason: Optional[str]
 
 
 class ParticipantCreate(ParticipantBase):
@@ -55,7 +69,7 @@ class ParticipantCreate(ParticipantBase):
 
 
 class ParticipantUpdate(ParticipantBase):
-    pass
+    individual: Optional[IndividualReadNested]
 
 
 class ParticipantRead(ParticipantBase):

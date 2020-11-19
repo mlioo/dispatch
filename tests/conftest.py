@@ -11,13 +11,9 @@ environ["DISPATCH_HELP_EMAIL"] = "example@example.com"
 environ["DISPATCH_HELP_SLACK_CHANNEL"] = "help-me"
 environ["DISPATCH_UI_URL"] = "https://example.com"
 environ["SLACK_APP_USER_SLUG"] = "XXX"
-environ["INCIDENT_DOCUMENT_INVESTIGATION_SHEET_ID"] = "XXX"
-environ["INCIDENT_FAQ_DOCUMENT_ID"] = "XXX"
-environ["INCIDENT_CONVERSATION_COMMANDS_REFERENCE_DOCUMENT_ID"] = "XXX"
 environ["INCIDENT_NOTIFICATION_CONVERSATIONS"] = "sirt-dev-test-notify"
 environ["INCIDENT_NOTIFICATION_DISTRIBUTION_LISTS"] = "sirt-dev-test-notify@example.com"
-environ["INCIDENT_STORAGE_ARCHIVAL_FOLDER_ID"] = "XXX"
-environ["INCIDENT_STORAGE_INCIDENT_REVIEW_FILE_ID"] = "XXX"
+environ["INCIDENT_STORAGE_FOLDER_ID"] = "XXX"
 environ["JWKS_URL"] = "example.com"
 environ["ENV"] = "pytest"
 environ["DISPATCH_AUTHENTICATION_PROVIDER_SLUG"] = ""  # disable authentication for tests
@@ -28,6 +24,7 @@ from dispatch import config
 from dispatch.database import Base, engine, SessionLocal
 
 from .factories import (
+    ConferenceFactory,
     ConversationFactory,
     DefinitionFactory,
     DocumentFactory,
@@ -43,7 +40,7 @@ from .factories import (
     RecommendationAccuracyFactory,
     RecommendationFactory,
     ServiceFactory,
-    StatusReportFactory,
+    ReportFactory,
     StorageFactory,
     TagFactory,
     TaskFactory,
@@ -70,7 +67,7 @@ def pytest_runtest_makereport(item, call):
             parent._previousfailed = item
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def testapp():
     # we only want to use test plugins so unregister everybody else
     from dispatch.plugins.base import unregister, plugins
@@ -82,7 +79,7 @@ def testapp():
     yield app
 
 
-@pytest.yield_fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def db():
     if database_exists(str(config.SQLALCHEMY_DATABASE_URI)):
         drop_database(str(config.SQLALCHEMY_DATABASE_URI))
@@ -94,7 +91,7 @@ def db():
     drop_database(str(config.SQLALCHEMY_DATABASE_URI))
 
 
-@pytest.yield_fixture(scope="function")
+@pytest.fixture(scope="function")
 def session(db):
     """
     Creates a new database session with (with working transaction)
@@ -105,7 +102,7 @@ def session(db):
     db.rollback()
 
 
-@pytest.yield_fixture(scope="function")
+@pytest.fixture(scope="function")
 def client(testapp, session, client):
     yield TestClient(testapp)
 
@@ -233,6 +230,16 @@ def Tag(session):
 
 
 @pytest.fixture
+def conference(session):
+    return ConferenceFactory()
+
+
+@pytest.fixture
+def conferences(session):
+    return [ConferenceFactory(), ConferenceFactory(), ConferenceFactory()]
+
+
+@pytest.fixture
 def conversation(session):
     return ConversationFactory()
 
@@ -333,8 +340,8 @@ def services(session):
 
 
 @pytest.fixture
-def status_report(session):
-    return StatusReportFactory()
+def report(session):
+    return ReportFactory()
 
 
 @pytest.fixture

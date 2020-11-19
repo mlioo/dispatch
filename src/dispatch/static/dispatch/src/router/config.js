@@ -1,4 +1,4 @@
-import { DefaultLayout, AuthLayout } from "@/components/layouts"
+import { DefaultLayout, DashboardLayout, AuthLayout } from "@/components/layouts"
 
 export const publicRoute = [
   {
@@ -48,14 +48,34 @@ export const protectedRoute = [
   {
     path: "/",
     component: DefaultLayout,
-    meta: { title: "Incident Report", group: "incidents", icon: "" },
-    redirect: "/incidents/report",
+    meta: { title: "Dispatch", group: "incidents", icon: "", requiresAuth: true },
+    redirect: "/dashboard/incidents"
+  },
+  {
+    path: "/dashboard",
+    component: DashboardLayout,
+    redirect: "/dashboard/incidents",
+    meta: { title: "Dashboard", group: "incidents", icon: "", requiresAuth: true },
     children: [
       {
-        path: "/403",
-        name: "Forbidden",
-        meta: { title: "Access Denied", hiddenInMenu: true },
-        component: () => import(/* webpackChunkName: "error-403" */ "@/views/error/Deny.vue")
+        path: "incidents",
+        name: "IncidentOverview",
+        meta: { hiddenInMenu: true },
+        props: route => ({
+          query: route.query
+        }),
+        component: () =>
+          import(/* webpackChunkName: "incident-overview" */ "@/dashboard/IncidentOverview.vue")
+      },
+      {
+        path: "tasks",
+        name: "TaskOverview",
+        meta: { hiddenInMenu: true },
+        props: route => ({
+          query: route.query
+        }),
+        component: () =>
+          import(/* webpackChunkName: "task-overview" */ "@/dashboard/TaskOverview.vue")
       }
     ]
   },
@@ -102,19 +122,6 @@ export const protectedRoute = [
         name: "IncidentPriorityTable",
         component: () =>
           import(/* webpackChunkName: "routing-table" */ "@/incident_priority/Table.vue")
-      }
-    ]
-  },
-  {
-    path: "/dashboard",
-    component: DefaultLayout,
-    meta: { title: "Dashboard", icon: "view_compact", group: "dashboard", requiresAuth: true },
-    children: [
-      {
-        path: "/dashboard",
-        name: "Dashboard",
-        component: () =>
-          import(/* webpackChunkName: "incident-dashboard" */ "@/dashboard/Dashboard.vue")
       }
     ]
   },
@@ -173,6 +180,23 @@ export const protectedRoute = [
     ]
   },
   {
+    path: "/tags/types",
+    component: DefaultLayout,
+    meta: {
+      title: "Tag Types",
+      icon: "view_compact",
+      group: "configuration",
+      requiresAuth: true
+    },
+    children: [
+      {
+        path: "/tags/types",
+        name: "TagTypeTable",
+        component: () => import(/* webpackChunkName: "routing-table" */ "@/tag_type/Table.vue")
+      }
+    ]
+  },
+  {
     path: "/tags",
     component: DefaultLayout,
     meta: { title: "Tags", icon: "view_compact", group: "contacts", requiresAuth: true },
@@ -203,9 +227,21 @@ export const protectedRoute = [
     meta: { title: "Documents", icon: "view_compact", group: "knowledge", requiresAuth: true },
     children: [
       {
-        path: "/Documents",
+        path: "/documents",
         name: "DocumentTable",
         component: () => import(/* webpackChunkName: "definition-table" */ "@/document/Table.vue")
+      }
+    ]
+  },
+  {
+    path: "/workflows",
+    component: DefaultLayout,
+    meta: { title: "Workflows", icon: "view_compac", group: "knowledge", requiresAuth: true },
+    children: [
+      {
+        path: "/workflows",
+        name: "WorkflowTable",
+        component: () => import(/* webpackChunkName: "definition-table" */ "@/workflow/Table.vue")
       }
     ]
   },
@@ -233,7 +269,18 @@ export const protectedRoute = [
       }
     ]
   },
-
+  {
+    path: "/feedback",
+    component: DefaultLayout,
+    meta: { title: "Feedback", icon: "view_compact", group: "incident", requiresAuth: true },
+    children: [
+      {
+        path: "/feedback",
+        name: "FeedbackTable",
+        component: () => import(/* webpackChunkName: "knowledge-table" */ "@/feedback/Table.vue")
+      }
+    ]
+  },
   {
     path: "/terms",
     component: DefaultLayout,
@@ -258,18 +305,18 @@ export const protectedRoute = [
       }
     ]
   },
-  {
-    path: "/route",
-    component: DefaultLayout,
-    meta: { title: "Route", icon: "view_compact", group: "routing", requiresAuth: true },
-    children: [
-      {
-        path: "/route",
-        name: "RouteTable",
-        component: () => import(/* webpackChunkName: "routing-table" */ "@/route/Table.vue")
-      }
-    ]
-  },
+  //{
+  //  path: "/route",
+  //  component: DefaultLayout,
+  //  meta: { title: "Route", icon: "view_compact", group: "routing", requiresAuth: true },
+  //  children: [
+  //    {
+  //      path: "/route",
+  //      name: "RouteTable",
+  //      component: () => import(/* webpackChunkName: "routing-table" */ "@/route/Table.vue")
+  //    }
+  //  ]
+  //},
   {
     path: "/plugins",
     component: DefaultLayout,
@@ -284,6 +331,23 @@ export const protectedRoute = [
         path: "/plugins",
         name: "PluginTable",
         component: () => import(/* webpackChunkName: "routing-table" */ "@/plugin/Table.vue")
+      }
+    ]
+  },
+  {
+    path: "/users",
+    component: DefaultLayout,
+    meta: {
+      title: "Users",
+      icon: "view_compact",
+      group: "configuration",
+      requiresAuth: true
+    },
+    children: [
+      {
+        path: "/users",
+        name: "UserTable",
+        component: () => import(/* webpackChunkName: "routing-table" */ "@/auth/Table.vue")
       }
     ]
   }

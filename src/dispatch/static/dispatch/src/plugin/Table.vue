@@ -15,7 +15,6 @@
                 single-line
                 hide-details
                 clearable
-                :loading="loading"
               />
             </v-card-title>
             <v-data-table
@@ -26,7 +25,8 @@
               :items-per-page.sync="itemsPerPage"
               :sort-by.sync="sortBy"
               :sort-desc.sync="descending"
-              @click:row="editShow"
+              :loading="loading"
+              loading-text="Loading... Please wait"
             >
               <template v-slot:item.author="{ item }">
                 <a :href="item.author_url" target="_blank" style="text-decoration: none;">
@@ -35,13 +35,27 @@
                 </a>
               </template>
               <template v-slot:item.enabled="{ item }">
-                {{ item.enabled ? "Enabled" : "Disabled" }}
+                <v-simple-checkbox v-model="item.enabled" disabled></v-simple-checkbox>
               </template>
               <template v-slot:item.multiple="{ item }">
-                {{ item.multiple ? "Yes" : "No" }}
+                <v-simple-checkbox v-model="item.multiple" disabled></v-simple-checkbox>
               </template>
               <template v-slot:item.required="{ item }">
-                {{ item.required ? "Yes" : "No" }}
+                <v-simple-checkbox v-model="item.required" disabled></v-simple-checkbox>
+              </template>
+              <template v-slot:item.data-table-actions="{ item }">
+                <v-menu bottom left>
+                  <template v-slot:activator="{ on }">
+                    <v-btn icon v-on="on">
+                      <v-icon>mdi-dots-vertical</v-icon>
+                    </v-btn>
+                  </template>
+                  <v-list>
+                    <v-list-item @click="editShow(item)">
+                      <v-list-item-title>Edit</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
               </template>
             </v-data-table>
           </v-card>
@@ -68,10 +82,11 @@ export default {
         { text: "Slug", value: "slug", sortable: true },
         { text: "Author", value: "author", sortable: true },
         { text: "Version", value: "version", sortable: true },
-        { text: "Status", value: "enabled", sortable: true },
+        { text: "Enabled", value: "enabled", sortable: true },
         { text: "Required", value: "required", sortable: true },
         { text: "Multiple Allowed", value: "multiple", sortable: true },
-        { text: "Type", value: "type", sortable: true }
+        { text: "Type", value: "type", sortable: true },
+        { text: "", value: "data-table-actions", sortable: false, align: "end" }
       ]
     }
   },
@@ -83,7 +98,7 @@ export default {
       "table.options.itemsPerPage",
       "table.options.sortBy",
       "table.options.descending",
-      "table.options.loading",
+      "table.loading",
       "table.rows.items",
       "table.rows.total"
     ])
@@ -93,8 +108,16 @@ export default {
     this.getAll({})
 
     this.$watch(
-      vm => [vm.q, vm.page, vm.itemsPerPage, vm.sortBy, vm.descending],
+      vm => [vm.page],
       () => {
+        this.getAll()
+      }
+    )
+
+    this.$watch(
+      vm => [vm.q, vm.itemsPerPage, vm.sortBy, vm.descending],
+      () => {
+        this.page = 1
         this.getAll()
       }
     )

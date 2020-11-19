@@ -14,7 +14,7 @@ Dispatch uses the same configuration system as [Starlette](https://www.starlette
 By default, the config will be read from environment variables and/or `.env` files.
 
 {% hint style="info" %}
-All config items prefixed with `VUE_APP` are envvars for the Vue frontend. These variables are used only during the building of the javascript bundle. See [here](https://cli.vuejs.org/guide/mode-and-env.html) for details.
+All config items prefixed with `VUE_APP` are envvars for the Vue frontend. These variables are used only during the building of the javascript bundle. See [here](https://cli.vuejs.org/guide/mode-and-env.html) for details. You will want to include these variables in `src/dispatch/static/dispatch/.env` during build time.
 {% endhint %}
 
 {% hint style="info" %}
@@ -35,7 +35,15 @@ In general, do not include any quotation marks when adding configuration values.
 
 > A comma separated list of metric providers Dispatch will send key system metrics to.
 
-#### `SENTRY_DSN` \[default: none\] \[secret: True\]
+#### `SECRET_PROVIDER` \[default: None\]
+
+> Defines the provider to use for configuration secret decryption. Available options are: `kms-secret` and `metatron-secret`
+
+#### `ENV_TAGS` \[defaut: ""\]
+
+> A comma separated list of tags that Dispatch will attempt to pull from the environment. As an example the string `foo:bar,baz:blah` will create two tags: `foo` with the environment value for `bar` and `baz` with the environment value for `blah`.
+
+#### `SENTRY_DSN` \[default: none\]
 
 > Optional configuration for using Sentry to report Dispatch errors.
 
@@ -62,7 +70,7 @@ In general, do not include any quotation marks when adding configuration values.
 > Used by Dispatch to determine which authentication provider to use, by default Dispatch ships with a PKCE authentication provider.
 
 {% hint style="info" %}
-If you wish to disable authentication set `DISPATCH_AUTHENTICATION_PROVIDER=""`
+If you wish to disable authentication set `DISPATCH_AUTHENTICATION_PROVIDER_SLUG=`
 {% endhint %}
 
 #### Configuration for `dispatch-auth-provider-basic`
@@ -71,17 +79,29 @@ If you wish to disable authentication set `DISPATCH_AUTHENTICATION_PROVIDER=""`
 Today, basic authentication allows self registration without approval.
 {% endhint %}
 
+{% hint style="warning" %}
+In order for this plugin to work, you need to set `DISPATCH_JWT_SECRET`.
+{% endhint %}
+
 #### `DISPATCH_JWT_SECRET`
-
-> Uses by the basic auth provider to mint JWT tokens.
-
-#### `DISPATCH_JWT_ALG` ['default': 'HS256']
 
 > Used by the basic auth provider to mint JWT tokens.
 
-#### `DISPATCH_JWT_EXP` ['default': 86400 ]
+#### `DISPATCH_JWT_ALG` \['default': 'HS256'\]
+
+> Used by the basic auth provider to mint JWT tokens.
+
+#### `DISPATCH_JWT_EXP` \['default': 86400 \]
 
 > Used by the basic auth provider to mint JWT tokens and set their expiration.
+
+#### `DISPATCH_JWT_AUDIENCE`
+
+> Override what the `Audience` is expected to be in the PKCE JWT decode
+
+#### `DISPATCH_JWT_EMAIL_OVERRIDE`
+
+> Override where Dispatch should find the user email in the idtoken.
 
 #### `DISPATCH_AUTHENTICATION_DEFAULT_USER` \['default': dispatch@example.com\]
 
@@ -89,15 +109,27 @@ Today, basic authentication allows self registration without approval.
 
 #### Configuration for `dispatch-auth-provider-pkce`
 
+{% hint style="warning" %}
+In order for this plugin to work with your OIDC setup, you may need to set 
+`DISPATCH_JWT_AUDIENCE` and `DISPATCH_PKCE_DONT_VERIFY_AT_HASH`. 
+{% endhint %}
+
 #### `DISPATCH_AUTHENTICATION_PROVIDER_PKCE_JWK` \['default': true\]
 
-> Used by Dispatch's authentication backend to pull the JSON Web Key Set \(JWKS\) public key from the specified provider.
+> Used by Dispatch's authentication backend to pull the JSON Web Key Set \(JWKS\) public key from the specified provider. 
+> This will likely be the `jwks_uri` URL from your OIDC provider.
 
-#### `VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_OPEN_ID_CONNECT`
+#### `DISPATCH_PKCE_DONT_VERIFY_AT_HASH` \['default': false\]
 
-> Used by the Dispatch Web UI send the user via Proof Key Code Exchange \(PKCE\) to a correct OpenID Connect endpoint.
+> Depending on what values your OIDC provider sends, you may need to set this to `true` for the Dispatch backend
+> to be able to decode the JWT token.
 
-#### `VUE_APP_DISPATCH_AUTHENTICATOIN_PROVIDER_PKCE_CLIENT_ID`
+#### `VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_OPEN_ID_CONNECT_URL`
+
+> The well-known configuration URL for your OIDC provider, without a trailing slash. Used by the Dispatch 
+> Web UI to authenticate a user via Proof Key Code Exchange \(PKCE\).
+
+#### `VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_CLIENT_ID`
 
 > The client id to send to the OpenID Connect endpoint.
 
@@ -123,7 +155,7 @@ Today, basic authentication allows self registration without approval.
 
 ### Incident Cost
 
-Dispatch [calculates](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/service.py#L279) the cost of an incident by adding up the time participants have spent on each incident role (e.g. Incident Commander) and applying an [engagement multiplier](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/service.py#L266) that's based on the incident role. It also includes time spent on incident review related activities. Dispatch calculates and published the cost for all incidents [every 5 minutes](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/scheduled.py#L257).
+Dispatch [calculates](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/service.py#L279) the cost of an incident by adding up the time participants have spent on each incident role \(e.g. Incident Commander\) and applying an [engagement multiplier](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/service.py#L266) that's based on the incident role. It also includes time spent on incident review related activities. Dispatch calculates and published the cost for all incidents [every 5 minutes](https://github.com/Netflix/dispatch/blob/develop/src/dispatch/incident/scheduled.py#L257).
 
 #### `ANNUAL_COST_EMPLOYEE` \[default: '50000'\]
 
@@ -133,69 +165,16 @@ Dispatch [calculates](https://github.com/Netflix/dispatch/blob/develop/src/dispa
 
 > Used for incident cost modeling, specifies the number of hours in an employee's work year.
 
-### Incident Plugin Configuration
-
-#### `INCIDENT_PLUGIN_CONTACT_SLUG` \[default: 'slack-contact'\]
-
-> Controls which plugin will be used to resolve incident participant email addresses. The plugin will also be used to gather additional participant information such as name, team, location, etc.
-
-#### `INCIDENT_PLUGIN_CONVERSATION_SLUG` \[default: 'slack-conversation'\]
-
-> Controls which plugin will be used for incident conversations.
-
-#### `INCIDENT_PLUGIN_DOCUMENT_SLUG` \[default: 'google-docs-document'\]
-
-> Controls which plugin will be used for incident document creation.
-
-#### `INCIDENT_PLUGIN_DOCUMENT_RESOLVER_SLUG` \[default: 'dispatch-document-resolver'\]
-
-> Controls which plugin will be used to recommend documents to be automatically included for a given incident.
-
-#### `INCIDENT_PLUGIN_CONFERENCE_PLUGIN` \[default: 'google-calendar-conference'\]
-
-> Controls which plugin will be used to create a conference.
-
-#### `INCIDENT_PLUGIN_EMAIL_SLUG` \[default: 'google-gmail-conversation'\]
-
-> Controls which plugin will be used to send incident email notifications.
-
-#### `INCIDENT_PLUGIN_GROUP_SLUG` \[default: 'google-group-participant-group'\]
-
-> Controls which plugin will be used to create incident participant groups \(DLs\).
-
-#### `INCIDENT_PLUGIN_PARTICIPANT_SLUG` \[default: 'dispatch-participants'\]
-
-> Controls which plugin will be used to determine which participants should be automatically included for a given incident.
-
-#### `INCIDENT_PLUGIN_STORAGE_SLUG` \[default: 'google-drive-storage'\]
-
-> Controls which plugin will be used for incident storage.
-
-#### `INCIDENT_PLUGIN_TICKET_SLUG` \[default: 'jira-ticket'\]
-
-> Controls the plugin to use for creating external tickets. The ticket number is used as incident name.
-
-#### `INCIDENT_PLUGIN_TASK_SLUG` \[default: 'google-drive-task'\]
-
-> Controls the plugin to use for creation of incident tasks.
-
 ### Incident Resource Configuration
 
-#### `INCIDENT_FAQ_DOCUMENT_ID`
+#### `INCIDENT_STORAGE_FOLDER_ID`
 
-> Controls which document id to use as the FAQ.
+> Top level folder where all incident data is stored. Note: viewing actual incident data is still on a per-sub folder basis. For Google Drive,
+> you can get the folder ID from viewing a folder in the Google Drive UI, and copying the last part of the URL (`/drive/u/0/folders/<this value>`)
 
-#### `INCIDENT_CONVERSATION_COMMANDS_REFERENCE_DOCUMENT_ID`
+#### `INCIDENT_STORAGE_OPEN_ON_CLOSE` \[default: 'true'\]
 
-> Controls which document id to use for the conversation commands reference document.
-
-#### `INCIDENT_STORAGE_ARCHIVAL_FOLDER_ID`
-
-> Controls the folder where to archive incident information.
-
-#### `INCIDENT_STORAGE_RESTRICTED` \[default: 'True'\]
-
-> Controls whether a set of restrictions and capabilities to prevent content sharing need to be applied.
+> After an incident is closed, Netflix as an organization, tries to be transparent and allow others within the organization to view incident data. This is may not desirable in all organizations. This controls whether to open up incident data on incident close.
 
 #### `INCIDENT_NOTIFICATION_CONVERSATIONS` \[default: ''\]
 
@@ -205,9 +184,9 @@ Dispatch [calculates](https://github.com/Netflix/dispatch/blob/develop/src/dispa
 
 > Comma separated list of email addresses to be notified of new incidents.
 
-#### `INCIDENT_DAILY_SUMMARY_ONCALL_SERVICE_ID` \[default: None\]
+#### `INCIDENT_ONCALL_SERVICE_ID` \[default: None\]
 
-> Specifies the oncall service id to use to resolve the oncall person that is included in the daily incidents summary.
+> Specifies the oncall service id to use to resolve the oncall person.
 
 #### `INCIDENT_RESOURCE_TASK` \[default: 'google-docs-incident-task'\]
 

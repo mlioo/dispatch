@@ -93,6 +93,10 @@ def open_dialog(self, trigger_id: str, dialog: dict):
     """Opens a dialog with a user."""
     return
 
+def open_modal(self, trigger_id: str, modal: dict):
+    """Opens a modal with a user."""
+    return
+
 def archive(self, conversation_id: str):
     """Archives conversation."""
     return
@@ -204,7 +208,7 @@ def add(self, email: str, participants: List[str], role: str = "MEMBER"):
 
 def remove(self, email: str, participants: List[str]):
     """Removes participants from existing participant group."""
-    return 
+    return
 
 def delete(self, email: str):
     """Deletes an existing participant group."""
@@ -286,7 +290,7 @@ def create_file(self, drive_id: str, name: str, file_type: str = "folder"):
 
 def delete_file(self, drive_id: str, file_id: str):
     """Removes a file from existing drive."""
-    return 
+    return
 
 def copy_file(self, drive_id: str, file_id: str, name: str):
     """Creates a copy of the given file and places it in the specified drive."""
@@ -304,9 +308,9 @@ def move_file(self, new_drive_id: str, file_id: str):
         "name": "file-name",
     }
 
-def archive(self, source_drive_id, dest_team_drive_id, folder_name):
+def archive(self, source_drive_id, dest_folder_id, folder_name):
     """Archives a shared team drive to a specific folder."""
-    return 
+    return
 
 def list_files(self, drive_id: str, q: str = None):
     """Lists all files in drive."""
@@ -352,7 +356,7 @@ def get(self, **kwargs):
 ## Ticket
 
 {% hint style="info" %}
-This interface is not stable and will need to be refactor and/or generalized. Please file an issue for guidance if you are trying to extent ticket creation.
+This interface is not stable and will need to be refactored and/or generalized. Please file an issue for guidance if you are trying to extend ticket creation.
 {% endhint %}
 
 ```python
@@ -382,3 +386,23 @@ def update(
     return
 ```
 
+## Workflow
+
+{% hint style="info" %}
+This interface is not stable and will need to be refactored and/or generalized. Please file an issue for guidance if you are trying to extend workflow creation.
+{% endhint %}
+
+```python
+def get_instance(
+        self, workflow_id: str, instance_id: str, **kwargs)
+    ):
+    """Fetches an individual workflow instance."""
+    return
+
+def run(
+    self,
+    workflow_id: str, params: dict, **kwargs):
+):
+    """Runs the given workflow"""
+    return
+```

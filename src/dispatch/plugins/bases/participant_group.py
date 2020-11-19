@@ -10,7 +10,7 @@ from dispatch.models import PluginOptionModel
 
 
 class ParticipantGroupPlugin(Plugin):
-    type = "participant_group"
+    type = "participant-group"
     _schema = PluginOptionModel
 
     def create(self, participants, **kwargs):
@@ -20,4 +20,10 @@ class ParticipantGroupPlugin(Plugin):
         raise NotImplementedError
 
     def remove(self, participant, **kwargs):
+        raise NotImplementedError
+
+    def delete(self, group, **kwargs):
+        raise NotImplementedError
+
+    def list(self, group, **kwargs):
         raise NotImplementedError

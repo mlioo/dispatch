@@ -1,16 +1,8 @@
-"""
-.. module: dispatch.plugins.dispatch_slack.service
-    :platform: Unix
-    :copyright: (c) 2019 by Netflix Inc., see AUTHORS for more
-    :license: Apache, see LICENSE for more details.
-.. moduleauthor:: Kevin Glisson <kglisson@netflix.com>
-"""
 from datetime import datetime, timezone
 from tenacity import TryAgain, retry, retry_if_exception_type, stop_after_attempt
 from typing import Any, Dict, List, Optional
 import functools
 import logging
-import re
 import slack
 import time
 
@@ -26,11 +18,7 @@ class NoConversationFoundException(Exception):
 
 def create_slack_client(run_async: bool = False):
     """Creates a Slack Web API client."""
-    return slack.WebClient(token=SLACK_API_BOT_TOKEN, run_async=run_async)
-
-
-def contains_numbers(string):
-    return any(char.isdigit() for char in string)
+    return slack.WebClient(token=str(SLACK_API_BOT_TOKEN), run_async=run_async)
 
 
 def resolve_user(client: Any, user_id: str):
@@ -45,10 +33,10 @@ def resolve_user(client: Any, user_id: str):
     return {"id": user_id}
 
 
-def chunks(l, n):
+def chunks(ids, n):
     """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i : i + n]
+    for i in range(0, len(ids), n):
+        yield ids[i : i + n]
 
 
 def paginated(data_key):
@@ -99,7 +87,14 @@ def time_pagination(data_key):
 
 
 # NOTE I don't like this but slack client is annoying (kglisson)
-SLACK_GET_ENDPOINTS = ["users.lookupByEmail", "users.info", "conversations.history"]
+SLACK_GET_ENDPOINTS = [
+    "conversations.history",
+    "conversations.info",
+    "users.conversations",
+    "users.info",
+    "users.lookupByEmail",
+    "users.profile.get",
+]
 
 
 @retry(stop=stop_after_attempt(5), retry=retry_if_exception_type(TryAgain))
@@ -184,6 +179,15 @@ def get_user_info_by_email(client: Any, email: str):
     return make_call(client, "users.lookupByEmail", email=email)["user"]
 
 
+@functools.lru_cache()
+def get_user_profile_by_email(client: Any, email: str):
+    """Gets extended profile information about a user by email."""
+    user = make_call(client, "users.lookupByEmail", email=email)["user"]
+    profile = make_call(client, "users.profile.get", user=user["id"])["profile"]
+    profile["tz"] = user["tz"]
+    return profile
+
+
 def get_user_email(client: Any, user_id: str):
     """Gets the user's email."""
     return get_user_info_by_id(client, user_id)["profile"]["email"]
@@ -204,9 +208,28 @@ def get_user_avatar_url(client: Any, email: str):
     return get_user_info_by_email(client, email)["profile"]["image_512"]
 
 
-def get_escaped_user_from_command(command_text: str):
-    """Gets escaped user sent to Slack command."""
-    return re.match(r"<@(?P<user_id>\w+)\|(?P<user_name>\w+)>", command_text).group("user_id")
+@functools.lru_cache()
+async def get_conversations_by_user_id_async(client: Any, user_id: str):
+    """Gets the list of public and private conversations a user is a member of."""
+    result = await make_call_async(
+        client,
+        "users.conversations",
+        user=user_id,
+        types="public_channel",
+        exclude_archived="true",
+    )
+    public_conversations = [c["name"] for c in result["channels"]]
+
+    result = await make_call_async(
+        client,
+        "users.conversations",
+        user=user_id,
+        types="private_channel",
+        exclude_archived="true",
+    )
+    private_conversations = [c["name"] for c in result["channels"]]
+
+    return public_conversations, private_conversations
 
 
 # note this will get slower over time, we might exclude archived to make it sane
@@ -217,22 +240,17 @@ def get_conversation_by_name(client: Any, name: str):
             return c
 
 
-def get_conversation_messages_by_reaction(client: Any, conversation_id: str, reaction: str):
-    """Fetches messages from a conversation by reaction type."""
-    messages = []
-    for m in list_conversation_messages(client, conversation_id):
-        if "reactions" in m and m["reactions"][0]["name"] == reaction and m["text"].strip():
-            messages.insert(
-                0,
-                {
-                    "datetime": datetime.fromtimestamp(float(m["ts"]))
-                    .astimezone(timezone("America/Los_Angeles"))
-                    .strftime("%Y-%m-%d %H:%M:%S"),
-                    "message": m["text"],
-                    "user": get_user_info_by_id(client, m["user"])["user"]["real_name"],
-                },
-            )
-    return messages
+async def get_conversation_name_by_id_async(client: Any, conversation_id: str):
+    """Fetches a conversation by id and returns its name."""
+    try:
+        return (await make_call_async(client, "conversations.info", channel=conversation_id))[
+            "channel"
+        ]["name"]
+    except slack.errors.SlackApiError as e:
+        if e.response["error"] == "channel_not_found":
+            return None
+        else:
+            raise e
 
 
 def set_conversation_topic(client: Any, conversation_id: str, topic: str):
@@ -276,30 +294,21 @@ def archive_conversation(client: Any, conversation_id: str):
     return make_call(client, "conversations.archive", channel=conversation_id)
 
 
+def unarchive_conversation(client: Any, conversation_id: str):
+    """Unarchives an existing conversation."""
+    try:
+        return make_call(client, "conversations.unarchive", channel=conversation_id)
+    except slack.errors.SlackApiError as e:
+        # if the channel isn't achived thats okay
+        if e.response["error"] != "not_archived":
+            raise e
+
+
 def add_users_to_conversation(client: Any, conversation_id: str, user_ids: List[str]):
     """Add users to conversation."""
     # NOTE this will trigger a member_joined_channel event, which we will capture and run the incident.incident_add_or_reactivate_participant_flow() as a result
     for c in chunks(user_ids, 30):  # NOTE api only allows 30 at a time.
         make_call(client, "conversations.invite", users=c, channel=conversation_id)
-
-
-@paginated("members")
-def get_conversation_members(
-    client: Any, conversation_id: str, include_bots: bool = False, **kwargs
-):
-    response = make_call(client, "conversations.members", channel=conversation_id, **kwargs)
-
-    details = []
-    for m in response["members"]:
-        details.append(make_call(client, "users.info", user=m)["user"])
-
-    response["members"] = details
-    return response
-
-
-def get_conversation_details(client: Any, conversation_id):
-    """Get conversation details."""
-    return make_call(client, "conversations.info", channel=conversation_id)
 
 
 def send_message(
@@ -317,17 +326,33 @@ def send_message(
 
 
 def send_ephemeral_message(
-    client: Any, conversation_id: str, user_id: str, text: str, blocks: Optional[List] = None
+    client: Any,
+    conversation_id: str,
+    user_id: str,
+    text: str,
+    blocks: Optional[List] = None,
+    thread_ts: Optional[str] = None,
 ):
     """Sends an ephemeral message to a user in a channel."""
-    response = make_call(
-        client,
-        "chat.postEphemeral",
-        channel=conversation_id,
-        user=user_id,
-        text=text,
-        blocks=blocks,
-    )
+    if thread_ts:
+        response = make_call(
+            client,
+            "chat.postEphemeral",
+            channel=conversation_id,
+            user=user_id,
+            text=text,
+            thread_ts=thread_ts,
+            blocks=blocks,
+        )
+    else:
+        response = make_call(
+            client,
+            "chat.postEphemeral",
+            channel=conversation_id,
+            user=user_id,
+            text=text,
+            blocks=blocks,
+        )
 
     return {"id": response["channel"], "timestamp": response["ts"]}
 
@@ -373,3 +398,14 @@ def is_user(slack_user: str):
 def open_dialog_with_user(client: Any, trigger_id: str, dialog: dict):
     """Opens a dialog with a user."""
     return make_call(client, "dialog.open", trigger_id=trigger_id, dialog=dialog)
+
+
+def open_modal_with_user(client: Any, trigger_id: str, modal: dict):
+    """Opens a modal with a user."""
+    # the argument should be view in the make call, since slack api expects view
+    return make_call(client, "views.open", trigger_id=trigger_id, view=modal)
+
+
+def update_modal_with_user(client: Any, trigger_id: str, view_id: str, modal: dict):
+    """Updates a modal with a user."""
+    return make_call(client, "views.update", trigger_id=trigger_id, view_id=view_id, view=modal)

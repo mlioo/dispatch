@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi.encoders import jsonable_encoder
 from sqlalchemy import or_
 
-from .models import Task, TaskStatus, TaskUpdate
+from dispatch.plugin import service as plugin_service
+from dispatch.event import service as event_service
+from dispatch.incident import flows as incident_flows
+from dispatch.incident.flows import incident_service
+from dispatch.ticket import service as ticket_service
+from .models import Task, TaskStatus, TaskUpdate, TaskCreate
 
 
 def get(*, db_session, task_id: int) -> Optional[Task]:
@@ -55,27 +59,73 @@ def get_overdue_tasks(*, db_session) -> List[Optional[Task]]:
     )
 
 
-def create(
-    *,
-    db_session,
-    creator: str,
-    assignees: str,
-    description: str,
-    status: TaskStatus,
-    resource_id: str,
-    resource_type: str,
-    weblink: str,
-) -> Task:
+def create(*, db_session, task_in: TaskCreate) -> Task:
     """Create a new task."""
-    task = Task(
-        creator=creator,
-        assignees=assignees,
-        description=description,
-        status=status,
-        resource_id=resource_id,
-        resource_type=resource_type,
-        weblink=weblink,
+    incident = incident_service.get(db_session=db_session, incident_id=task_in.incident.id)
+    tickets = [
+        ticket_service.get_or_create_by_weblink(
+            db_session=db_session, weblink=t.weblink, resource_type="task-ticket"
+        )
+        for t in task_in.tickets
+    ]
+
+    assignees = []
+    for i in task_in.assignees:
+        assignee = incident_flows.incident_add_or_reactivate_participant_flow(
+            db_session=db_session,
+            incident_id=incident.id,
+            user_email=i.individual.email,
+        )
+
+        # due to the freeform nature of task assignment, we can sometimes pick up other emails
+        # e.g. a google group that we cannont resolve to an individual assignee
+        if assignee:
+            assignees.append(assignee)
+
+    creator_email = None
+    if not task_in.creator:
+        creator_email = task_in.owner.individual.email
+    else:
+        creator_email = task_in.creator.individual.email
+
+    # add creator as a participant if they are not one already
+    creator = incident_flows.incident_add_or_reactivate_participant_flow(
+        db_session=db_session,
+        incident_id=incident.id,
+        user_email=creator_email,
     )
+
+    # if we cannot find any assignees, the creator becomes the default assignee
+    if not assignees:
+        assignees.append(creator)
+
+    # we add owner as a participant if they are not one already
+    if task_in.owner:
+        owner = incident_flows.incident_add_or_reactivate_participant_flow(
+            db_session=db_session,
+            incident_id=incident.id,
+            user_email=task_in.owner.individual.email,
+        )
+    else:
+        owner = incident.commander
+
+    task = Task(
+        **task_in.dict(exclude={"assignees", "owner", "incident", "creator", "tickets"}),
+        creator=creator,
+        owner=owner,
+        assignees=assignees,
+        incident=incident,
+        tickets=tickets,
+    )
+
+    event_service.log(
+        db_session=db_session,
+        source="Dispatch Core App",
+        description="New incident task created",
+        details={"weblink": task.weblink},
+        incident_id=incident.id,
+    )
+
     db_session.add(task)
     db_session.commit()
     return task
@@ -83,12 +133,46 @@ def create(
 
 def update(*, db_session, task: Task, task_in: TaskUpdate) -> Task:
     """Update an existing task."""
-    task_data = jsonable_encoder(task)
-    update_data = task_in.dict(skip_defaults=True)
+    # ensure we add assignee as participant if they are not one already
+    assignees = []
+    for i in task_in.assignees:
+        assignees.append(
+            incident_flows.incident_add_or_reactivate_participant_flow(
+                db_session=db_session,
+                incident_id=task.incident.id,
+                user_email=i.individual.email,
+            )
+        )
 
-    for field in task_data:
-        if field in update_data:
-            setattr(task, field, update_data[field])
+    task.assignees = assignees
+
+    # we add owner as a participant if they are not one already
+    if task_in.owner:
+        task.owner = incident_flows.incident_add_or_reactivate_participant_flow(
+            db_session=db_session,
+            incident_id=task.incident.id,
+            user_email=task_in.owner.individual.email,
+        )
+
+    update_data = task_in.dict(
+        skip_defaults=True, exclude={"assignees", "owner", "creator", "incident", "tickets"}
+    )
+
+    for field in update_data.keys():
+        setattr(task, field, update_data[field])
+
+    # if we have an external task plugin enabled, attempt to update the external resource as well
+    # we don't currently have a good way to get the correct file_id (we don't store a task <-> relationship)
+    # lets try in both the incident doc and PIR doc
+    drive_task_plugin = plugin_service.get_active(db_session=db_session, plugin_type="task")
+
+    if drive_task_plugin:
+        try:
+            file_id = task.incident.incident_document.resource_id
+            drive_task_plugin.instance.update(file_id, task.external_task_id, resolved=task.status)
+        except Exception:
+            file_id = task.incident.incident_review_document.resource_id
+            drive_task_plugin.instance.update(file_id, task.external_task_id, resolved=task.status)
 
     db_session.add(task)
     db_session.commit()

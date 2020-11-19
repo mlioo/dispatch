@@ -7,7 +7,6 @@ import uvicorn
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
 from tabulate import tabulate
-from uvicorn import main as uvicorn_main
 
 from dispatch import __version__, config
 
@@ -44,32 +43,116 @@ def plugins_group():
 @plugins_group.command("list")
 def list_plugins():
     """Shows all available plugins"""
+    from dispatch.database import SessionLocal
+    from dispatch.plugin import service as plugin_service
+
+    db_session = SessionLocal()
     table = []
     for p in plugins.all():
-        table.append([p.title, p.slug, p.version, p.type, p.author, p.description])
+        record = plugin_service.get_by_slug(db_session=db_session, slug=p.slug)
+
+        if not record:
+            log.warning(
+                f"Plugin {p.slug} available, but not installed. Run `dispatch plugins install` to install it."
+            )
+            continue
+
+        table.append(
+            [
+                record.title,
+                record.slug,
+                record.version,
+                record.enabled,
+                record.type,
+                record.author,
+                record.description,
+            ]
+        )
+
     click.secho(
-        tabulate(table, headers=["Title", "Slug", "Version", "Type", "Author", "Description"]),
+        tabulate(
+            table,
+            headers=[
+                "Title",
+                "Slug",
+                "Version",
+                "Enabled",
+                "Type",
+                "Author",
+                "Description",
+            ],
+        ),
         fg="blue",
     )
+
+
+@plugins_group.command("install")
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    help="Force a plugin to update all details about itself, this will overwrite the current database entry.",
+)
+def install_plugins(force):
+    """Installs all plugins, or only one."""
+    from dispatch.database import SessionLocal
+    from dispatch.plugin import service as plugin_service
+    from dispatch.plugin.models import Plugin
+
+    db_session = SessionLocal()
+    for p in plugins.all():
+        record = plugin_service.get_by_slug(db_session=db_session, slug=p.slug)
+        if not record:
+            click.secho(f"Installing plugin... Slug: {p.slug} Version: {p.version}", fg="blue")
+            record = Plugin(
+                title=p.title,
+                slug=p.slug,
+                type=p.type,
+                version=p.version,
+                author=p.author,
+                author_url=p.author_url,
+                required=p.required,
+                multiple=p.multiple,
+                description=p.description,
+                enabled=p.enabled,
+            )
+            db_session.add(record)
+
+        if force:
+            click.secho(f"Updating plugin... Slug: {p.slug} Version: {p.version}", fg="blue")
+            # we only update values that should change
+            record.tile = p.title
+            record.version = p.version
+            record.author = p.author
+            record.author_url = p.author_url
+            record.description = p.description
+            record.required = p.required
+            record.type = p.type
+            db_session.add(record)
+
+        db_session.commit()
 
 
 def sync_triggers():
     from sqlalchemy_searchable import sync_trigger
 
-    sync_trigger(engine, "tag", "search_vector", ["name"])
     sync_trigger(engine, "definition", "search_vector", ["text"])
+    sync_trigger(engine, "document", "search_vector", ["name"])
     sync_trigger(engine, "incident", "search_vector", ["name", "title", "description"])
+    sync_trigger(engine, "incident_type", "search_vector", ["name", "description"])
     sync_trigger(
         engine, "individual_contact", "search_vector", ["name", "title", "company", "notes"]
     )
+    sync_trigger(engine, "plugin", "search_vector", ["title"])
+    sync_trigger(engine, "policy", "search_vector", ["name", "description"])
+    sync_trigger(engine, "report", "search_vector", ["details_raw"])
+    sync_trigger(engine, "service", "search_vector", ["name"])
+    sync_trigger(engine, "tag", "search_vector", ["name"])
+    sync_trigger(engine, "task", "search_vector", ["description"])
     sync_trigger(engine, "team_contact", "search_vector", ["name", "company", "notes"])
     sync_trigger(engine, "term", "search_vector", ["text"])
-    sync_trigger(engine, "document", "search_vector", ["name"])
-    sync_trigger(engine, "incident_type", "search_vector", ["name", "description"])
-    sync_trigger(engine, "policy", "search_vector", ["name", "description"])
-    sync_trigger(engine, "service", "search_vector", ["name"])
-    sync_trigger(engine, "task", "search_vector", ["description"])
-    sync_trigger(engine, "plugin", "search_vector", ["title"])
+    sync_trigger(engine, "dispatch_user", "search_vector", ["email"])
+    sync_trigger(engine, "workflow", "search_vector", ["name", "description"])
 
 
 @dispatch_cli.group("database")
@@ -103,11 +186,14 @@ def init_database():
 
 
 @dispatch_database.command("restore")
-@click.option("--dump-file", default="dispatch-backup.dump", help="Path to a PostgreSQL dump file.")
+@click.option(
+    "--dump-file",
+    default="dispatch-backup.dump",
+    help="Path to a PostgreSQL text format dump file.",
+)
 def restore_database(dump_file):
-    """Restores the database via pg_restore."""
-    import sh
-    from sh import psql, createdb
+    """Restores the database via psql."""
+    from sh import psql, createdb, ErrorReturnCode_1
     from dispatch.config import (
         DATABASE_HOSTNAME,
         DATABASE_NAME,
@@ -130,7 +216,7 @@ def restore_database(dump_file):
                 _env={"PGPASSWORD": password},
             )
         )
-    except sh.ErrorReturnCode_1:
+    except ErrorReturnCode_1:
         print("Database already exists.")
 
     print(
@@ -152,7 +238,12 @@ def restore_database(dump_file):
 
 
 @dispatch_database.command("dump")
-def dump_database():
+@click.option(
+    "--dump-file",
+    default="dispatch-backup.dump",
+    help="Path to a PostgreSQL text format dump file.",
+)
+def dump_database(dump_file):
     """Dumps the database via pg_dump."""
     from sh import pg_dump
     from dispatch.config import (
@@ -166,7 +257,7 @@ def dump_database():
 
     pg_dump(
         "-f",
-        "dispatch-backup.dump",
+        dump_file,
         "-h",
         DATABASE_HOSTNAME,
         "-p",
@@ -179,19 +270,20 @@ def dump_database():
 
 
 @dispatch_database.command("drop")
-@click.option(
-    "--yes",
-    is_flag=True,
-    callback=abort_if_false,
-    expose_value=False,
-    prompt="Are you sure you want to drop the database?",
-)
-def drop_database():
+@click.option("--yes", is_flag=True, help="Silences all confirmation prompts.")
+def drop_database(yes):
     """Drops all data in database."""
     from sqlalchemy_utils import drop_database
 
-    drop_database(str(config.SQLALCHEMY_DATABASE_URI))
-    click.secho("Success.", fg="green")
+    if yes:
+        drop_database(str(config.SQLALCHEMY_DATABASE_URI))
+        click.secho("Success.", fg="green")
+
+    if click.confirm(
+        f"Are you sure you want to drop: '{config.DATABASE_HOSTNAME}:{config.DATABASE_NAME}'?"
+    ):
+        drop_database(str(config.SQLALCHEMY_DATABASE_URI))
+        click.secho("Success.", fg="green")
 
 
 @dispatch_database.command("upgrade")
@@ -208,6 +300,7 @@ def drop_database():
 def upgrade_database(tag, sql, revision):
     """Upgrades database schema to newest version."""
     from sqlalchemy_utils import database_exists, create_database
+    from alembic.migration import MigrationContext
 
     alembic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "alembic.ini")
     alembic_cfg = AlembicConfig(alembic_path)
@@ -216,12 +309,26 @@ def upgrade_database(tag, sql, revision):
         Base.metadata.create_all(engine)
         alembic_command.stamp(alembic_cfg, "head")
     else:
-        if not alembic_command.current(alembic_cfg):
+        conn = engine.connect()
+        context = MigrationContext.configure(conn)
+        current_rev = context.get_current_revision()
+        if not current_rev:
             Base.metadata.create_all(engine)
             alembic_command.stamp(alembic_cfg, "head")
         else:
             alembic_command.upgrade(alembic_cfg, revision, sql=sql, tag=tag)
+    sync_triggers()
     click.secho("Success.", fg="green")
+
+
+@dispatch_database.command("merge")
+@click.argument("revisions", nargs=-1)
+@click.option("--message")
+def merge_revisions(revisions, message):
+    """Combines two revisions."""
+    alembic_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "alembic.ini")
+    alembic_cfg = AlembicConfig(alembic_path)
+    alembic_command.merge(alembic_cfg, revisions, message=message)
 
 
 @dispatch_database.command("heads")
@@ -337,11 +444,13 @@ def revision_database(
 def dispatch_scheduler():
     """Container for all dispatch scheduler commands."""
     # we need scheduled tasks to be imported
+    from .document.scheduled import sync_document_terms  # noqa
     from .incident.scheduled import daily_summary, auto_tagger  # noqa
+    from .report.scheduled import incident_report_reminders  # noqa
+    from .tag.scheduled import sync_tags  # noqa
     from .task.scheduled import sync_tasks, create_task_reminders  # noqa
     from .term.scheduled import sync_terms  # noqa
-    from .document.scheduled import sync_document_terms  # noqa
-    from .tag.scheduled import sync_tags  # noqa
+    from .workflow.scheduled import sync_workflows, sync_active_stable_workflows  # noqa
 
 
 @dispatch_scheduler.command("list")
@@ -441,7 +550,7 @@ def run_server(log_level):
     uvicorn.run("dispatch.main:app", debug=True, log_level=log_level)
 
 
-dispatch_server.add_command(uvicorn_main, name="start")
+dispatch_server.add_command(uvicorn.main, name="start")
 
 
 @dispatch_server.command("shell")

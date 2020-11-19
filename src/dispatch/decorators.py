@@ -5,7 +5,6 @@ from functools import wraps
 from typing import Any, List
 
 from dispatch.metrics import provider as metrics_provider
-from .extensions import sentry_sdk, configure_extensions
 from .database import SessionLocal
 
 
@@ -27,25 +26,25 @@ def background_task(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        db_session = SessionLocal()
-        kwargs["db_session"] = db_session
+        background = False
+        if not kwargs.get("db_session"):
+            db_session = SessionLocal()
+            background = True
+            kwargs["db_session"] = db_session
         try:
-            metrics_provider.counter(f"function.call.counter", tags={"function": fullname(func)})
+            metrics_provider.counter("function.call.counter", tags={"function": fullname(func)})
             start = time.perf_counter()
             result = func(*args, **kwargs)
             elapsed_time = time.perf_counter() - start
             metrics_provider.timer(
-                f"function.elapsed.time", value=elapsed_time, tags={"function": fullname(func)}
+                "function.elapsed.time", value=elapsed_time, tags={"function": fullname(func)}
             )
             return result
         except Exception as e:
-            import traceback
-
-            configure_extensions()
-            print(traceback.format_exc())
-            sentry_sdk.capture_exception(e)
+            log.exception(e)
         finally:
-            db_session.close()
+            if background:
+                kwargs["db_session"].close()
 
     return wrapper
 
@@ -59,7 +58,7 @@ def timer(func: Any):
         result = func(*args, **kwargs)
         elapsed_time = time.perf_counter() - start
         metrics_provider.timer(
-            f"function.elapsed.time", value=elapsed_time, tags={"function": fullname(func)}
+            "function.elapsed.time", value=elapsed_time, tags={"function": fullname(func)}
         )
         return result
 
@@ -71,7 +70,7 @@ def counter(func: Any):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        metrics_provider.counter(f"function.call.counter", tags={"function": fullname(func)})
+        metrics_provider.counter("function.call.counter", tags={"function": fullname(func)})
         return func(*args, **kwargs)
 
     return wrapper

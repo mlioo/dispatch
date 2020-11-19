@@ -102,6 +102,9 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+# PyCharm
+.idea
+
 # Sphinx documentation
 docs/_build/
 
@@ -131,12 +134,14 @@ ipython_config.py
 
 # Environments
 .env
+!data/.env
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.vscode/
 
 # Spyder project settings
 .spyderproject
@@ -201,5 +206,6 @@ tags
 
 # exclude docker env files
 docker/.env
+
+# exclude data dump files
 *.dump
-!data/dispatch-sample-data.dump

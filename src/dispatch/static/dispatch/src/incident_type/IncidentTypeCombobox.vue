@@ -30,7 +30,7 @@
 
 <script>
 import IncidentTypeApi from "@/incident_type/api"
-import _ from "lodash"
+import { cloneDeep, debounce } from "lodash"
 export default {
   name: "IncidentTypeComboBox",
   props: {
@@ -59,9 +59,10 @@ export default {
   computed: {
     incidentType: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
+        this.search = null
         this._incidentTypes = value.map(v => {
           if (typeof v === "string") {
             v = {
@@ -89,7 +90,7 @@ export default {
         this.loading = false
       })
     },
-    getFilteredData: _.debounce(function(options) {
+    getFilteredData: debounce(function(options) {
       this.fetchData(options)
     }, 500)
   }

@@ -1,8 +1,7 @@
 import IncidentApi from "@/incident/api"
 
 import { getField, updateField } from "vuex-map-fields"
-import { debounce } from "lodash"
-import _ from "lodash"
+import { debounce, forEach, each, has } from "lodash"
 
 const getDefaultSelectedState = () => {
   return {
@@ -26,6 +25,8 @@ const getDefaultSelectedState = () => {
     tags: [],
     terms: [],
     ticket: null,
+    duplicates: [],
+    workflow_instances: null,
     title: null,
     visibility: null,
     loading: false
@@ -84,9 +85,9 @@ const actions = {
     tableOptions.ops = []
     tableOptions.values = []
 
-    _.forEach(state.table.options.filters, function(value, key) {
-      _.each(value, function(value) {
-        if (_.has(value, "id")) {
+    forEach(state.table.options.filters, function(value, key) {
+      each(value, function(value) {
+        if (has(value, "id")) {
           tableOptions.fields.push(key + ".id")
           tableOptions.values.push(value.id)
         } else {
@@ -96,10 +97,14 @@ const actions = {
         tableOptions.ops.push("==")
       })
     })
-    return IncidentApi.getAll(tableOptions).then(response => {
-      commit("SET_TABLE_LOADING", false)
-      commit("SET_TABLE_ROWS", response.data)
-    })
+    return IncidentApi.getAll(tableOptions)
+      .then(response => {
+        commit("SET_TABLE_LOADING", false)
+        commit("SET_TABLE_ROWS", response.data)
+      })
+      .catch(() => {
+        commit("SET_TABLE_LOADING", false)
+      })
   }, 200),
   get({ commit, state }) {
     return IncidentApi.get(state.selected.id).then(response => {
@@ -134,31 +139,46 @@ const actions = {
     commit("SET_DIALOG_DELETE", false)
     commit("RESET_SELECTED")
   },
-  save({ commit, dispatch }) {
-    if (!state.selected.id) {
-      commit("SET_SELECTED_LOADING", true)
-      return IncidentApi.create(state.selected)
-        .then(response => {
-          commit("SET_SELECTED", response.data)
-          commit("SET_SELECTED_LOADING", false)
-          this.interval = setInterval(function() {
-            if (state.selected.id) {
-              dispatch("get")
-            }
+  report({ commit, dispatch }) {
+    commit("SET_SELECTED_LOADING", true)
+    return IncidentApi.create(state.selected)
+      .then(response => {
+        commit("SET_SELECTED", response.data)
+        commit("SET_SELECTED_LOADING", false)
+        this.interval = setInterval(function() {
+          if (state.selected.id) {
+            dispatch("get")
+          }
 
-            // TODO this is fragile but we don't set anything as "created"
-            if (state.selected.conversation) {
-              clearInterval(this.interval)
-            }
-          }, 5000)
-        })
-        .catch(() => {})
-    } else {
-      return IncidentApi.update(state.selected.id, state.selected)
+          // TODO this is fragile but we don't set anything as "created"
+          if (state.selected.conversation) {
+            clearInterval(this.interval)
+          }
+        }, 5000)
+      })
+      .catch(err => {
+        commit(
+          "app/SET_SNACKBAR",
+          {
+            text:
+              "Incident could not be reported. Please try again. Reason: " +
+              err.response.data.detail,
+            color: "red"
+          },
+          { root: true }
+        )
+        commit("SET_SELECTED_LOADING", false)
+      })
+  },
+  save({ commit, dispatch }) {
+    commit("SET_SELECTED_LOADING", true)
+    if (!state.selected.id) {
+      return IncidentApi.create(state.selected)
         .then(() => {
-          dispatch("closeCreateEdit")
+          dispatch("closeNewSheet")
           dispatch("getAll")
-          commit("app/SET_SNACKBAR", { text: "Incident updated successfully." }, { root: true })
+          commit("app/SET_SNACKBAR", { text: "Incident created successfully." }, { root: true })
+          commit("SET_SELECTED_LOADING", false)
         })
         .catch(err => {
           commit(
@@ -169,6 +189,26 @@ const actions = {
             },
             { root: true }
           )
+          commit("SET_SELECTED_LOADING", false)
+        })
+    } else {
+      return IncidentApi.update(state.selected.id, state.selected)
+        .then(() => {
+          dispatch("closeEditSheet")
+          dispatch("getAll")
+          commit("app/SET_SNACKBAR", { text: "Incident updated successfully." }, { root: true })
+          commit("SET_SELECTED_LOADING", false)
+        })
+        .catch(err => {
+          commit(
+            "app/SET_SNACKBAR",
+            {
+              text: "Incident not updated. Reason: " + err.response.data.detail,
+              color: "red"
+            },
+            { root: true }
+          )
+          commit("SET_SELECTED_LOADING", false)
         })
     }
   },
@@ -192,6 +232,15 @@ const actions = {
   },
   resetSelected({ commit }) {
     commit("RESET_SELECTED")
+  },
+  joinIncident({ commit }, incidentId) {
+    IncidentApi.join(incidentId, {}).then(() => {
+      commit(
+        "app/SET_SNACKBAR",
+        { text: "You have successfully joined the incident." },
+        { root: true }
+      )
+    })
   }
 }
 

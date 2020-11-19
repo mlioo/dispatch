@@ -17,7 +17,6 @@
                 single-line
                 hide-details
                 clearable
-                :loading="loading"
               />
             </v-card-title>
             <v-data-table
@@ -28,13 +27,31 @@
               :items-per-page.sync="itemsPerPage"
               :sort-by.sync="sortBy"
               :sort-desc.sync="descending"
+              :loading="loading"
+              loading-text="Loading... Please wait"
             >
-              <template v-slot:item.discoverable="{ item }">{{
-                item.discoverable | capitalize
-              }}</template>
-              <template v-slot:item.actions="{ item }">
-                <v-icon small class="mr-2" @click="createEditShow(item)">edit</v-icon>
-                <v-icon small @click="removeShow(item)">delete</v-icon>
+              <template v-slot:item.discoverable="{ item }">
+                <v-simple-checkbox v-model="item.discoverable" disabled></v-simple-checkbox>
+              </template>
+              <template v-slot:item.tag_type.name="{ item }">
+                {{ item.tag_type.name }}
+              </template>
+              <template v-slot:item.data-table-actions="{ item }">
+                <v-menu bottom left>
+                  <template v-slot:activator="{ on }">
+                    <v-btn icon v-on="on">
+                      <v-icon>mdi-dots-vertical</v-icon>
+                    </v-btn>
+                  </template>
+                  <v-list>
+                    <v-list-item @click="createEditShow(item)">
+                      <v-list-item-title>Edit</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item @click="removeShow(item)">
+                      <v-list-item-title>Delete</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-menu>
               </template>
             </v-data-table>
           </v-card>
@@ -60,10 +77,11 @@ export default {
     return {
       headers: [
         { text: "Name", value: "name", sortable: true },
-        { text: "Type", value: "type", sortable: true },
+        { text: "Description", value: "description", sortable: false },
+        { text: "Type", value: "tag_type.name", sortable: true },
         { text: "Source", value: "source", sortable: true },
         { text: "Discoverable", value: "discoverable", sortable: true },
-        { text: "Actions", value: "actions", sortable: false }
+        { text: "", value: "data-table-actions", sortable: false, align: "end" }
       ]
     }
   },
@@ -75,7 +93,7 @@ export default {
       "table.options.itemsPerPage",
       "table.options.sortBy",
       "table.options.descending",
-      "table.options.loading",
+      "table.loading",
       "table.rows.items",
       "table.rows.total"
     ])
@@ -85,8 +103,16 @@ export default {
     this.getAll({})
 
     this.$watch(
-      vm => [vm.q, vm.page, vm.itemsPerPage, vm.sortBy, vm.descending],
+      vm => [vm.page],
       () => {
+        this.getAll()
+      }
+    )
+
+    this.$watch(
+      vm => [vm.q, vm.itemsPerPage, vm.sortBy, vm.descending],
+      () => {
+        this.page = 1
         this.getAll()
       }
     )

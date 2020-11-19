@@ -2,7 +2,16 @@ from datetime import datetime
 from typing import List, Optional
 
 from pydantic import validator
-from sqlalchemy import Column, ForeignKey, Integer, PrimaryKeyConstraint, String, Table
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Integer,
+    PrimaryKeyConstraint,
+    String,
+    Table,
+    Boolean,
+    DateTime,
+)
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy_utils import TSVectorType
 
@@ -50,6 +59,7 @@ class Document(Base, ResourceMixin, TimeStampMixin):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     description = Column(String)
+    report_id = Column(Integer, ForeignKey("report.id"))
     incident_priorities = relationship(
         "IncidentPriority", secondary=assoc_document_incident_priorities, backref="documents"
     )
@@ -59,6 +69,12 @@ class Document(Base, ResourceMixin, TimeStampMixin):
     terms = relationship(
         "Term", secondary=assoc_document_terms, backref=backref("documents", cascade="all")
     )
+
+    evergreen = Column(Boolean)
+    evergreen_owner = Column(String)
+    evergreen_reminder_interval = Column(Integer, default=90)  # number of days
+    evergreen_last_reminder_at = Column(DateTime)
+
     search_vector = Column(TSVectorType("name"))
 
 
@@ -69,6 +85,10 @@ class DocumentBase(DispatchBase):
     description: Optional[str]
     weblink: str
     name: str
+    evergreen: Optional[bool] = False
+    evergreen_reminder_interval: Optional[int] = 90
+    evergreen_last_reminder_at: Optional[datetime] = None
+    evergreen_owner: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -99,8 +119,8 @@ class DocumentRead(DocumentBase):
         return v
 
 
-class DocumentNested(DocumentBase):
-    id: int
+class DocumentNested(DocumentRead):
+    pass
 
 
 class DocumentPagination(DispatchBase):

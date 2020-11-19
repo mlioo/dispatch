@@ -26,7 +26,7 @@
 
 <script>
 import DefinitionApi from "@/definition/api"
-import _ from "lodash"
+import { cloneDeep, debounce } from "lodash"
 export default {
   name: "DefinitionCombobox",
   props: {
@@ -49,9 +49,10 @@ export default {
   computed: {
     definitions: {
       get() {
-        return _.cloneDeep(this.value)
+        return cloneDeep(this.value)
       },
       set(value) {
+        this.search = null
         this._definitions = value.map(v => {
           if (typeof v === "string") {
             v = {
@@ -79,7 +80,7 @@ export default {
         this.loading = false
       })
     },
-    getFilteredData: _.debounce(function(options) {
+    getFilteredData: debounce(function(options) {
       this.fetchData(options)
     }, 500)
   }
