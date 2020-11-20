@@ -17,6 +17,7 @@ function login(to, from, next) {
   const clientId = process.env.VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_CLIENT_ID
   const openIdConnectUrl =
     process.env.VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_OPEN_ID_CONNECT_URL
+  const clientSecret = process.env.VUE_APP_DISPATCH_AUTHENTICATION_PROVIDER_PKCE_CLIENT_SECRET
   const scope = "openid profile email"
 
   const notifier = new AuthorizationNotifier()
