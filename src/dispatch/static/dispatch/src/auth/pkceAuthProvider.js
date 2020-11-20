@@ -65,7 +65,7 @@ function login(to, from, next) {
         redirect_uri: request.redirectUri,
         grant_type: GRANT_TYPE_AUTHORIZATION_CODE,
         code: response.code,
-        extras: { code_verifier: request.internal["code_verifier"] }
+        extras: { code_verifier: request.internal["code_verifier"], client_secret: clientSecret }
       })
       getCfg().then(cfg => {
         tokenHandler
@@ -73,7 +73,8 @@ function login(to, from, next) {
           .then(response => {
             // Redirect to the uri in session storage and then delete it from storage
             store.dispatch("auth/login", {
-              token: response.accessToken,
+              token: response.idToken,
+              access_token: response.accessToken,
               redirectUri: localStorage.getItem("redirect_uri")
             })
             localStorage.removeItem("redirect_uri")
