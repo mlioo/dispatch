@@ -226,7 +226,7 @@ async def handle_action(
     # We create an async Slack client
     slack_async_client = dispatch_slack_service.create_slack_client(run_async=True)
 
-    print(action)
+    logger.debug(f'Dumping slack request: {action}')
 
     # We resolve the user's email
     user_id = action["user"]["id"]
